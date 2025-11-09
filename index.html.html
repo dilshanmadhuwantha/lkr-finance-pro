@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>LKR Finance Pro</title>
+    
+    <!-- PWA: Manifest & Icons -->
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="icon-192.png" sizes="192x192">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <meta name="theme-color" content="#1a73e8">
+
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    
+    <!-- Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/luxon@3.4.4/build/global/luxon.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        :root {
+            --primary: #1a73e8; --primary-dark: #0d47a1; --income-dark: #0f9d58; --expense-dark: #db4437;
+            --bg: #f5f7fa; --card-bg: #ffffff; --text: #1f1f1f; --text-light: #5f6368; --border: #e0e0e0;
+            --shadow: 0 4px 12px rgba(0,0,0,0.08); --radius: 18px; --gap: 1rem; --padding: 1rem;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', sans-serif; background: linear-gradient(135deg, #f5f7fa 0%, #e4edf5 100%); color: var(--text); line-height: 1.6; font-size: 15px; min-height: 100vh; }
+        .container { max-width: 100%; margin: 0 auto; padding: 0 var(--padding); display: flex; flex-direction: column; gap: var(--gap); }
+        header { background: var(--card-bg); padding: 1.25rem var(--padding); text-align: center; box-shadow: var(--shadow); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+        .app-title { font-size: clamp(1.5rem, 5vw, 1.8rem); font-weight: 800; color: var(--primary); display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+        .tabs { display: flex; background: var(--card-bg); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); padding: 0.35rem; gap: 0.35rem; }
+        .tab { flex: 1; padding: clamp(0.6rem, 2vw, 0.75rem); text-align: center; font-weight: 600; font-size: clamp(0.8rem, 2.5vw, 0.9rem); color: var(--text-light); transition: all 0.3s ease; border-radius: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.35rem; }
+        .tab.active { background: var(--primary); color: white; box-shadow: 0 2px 8px rgba(26,115,232,0.3); }
+        .tab-content { display: none; animation: fadeIn 0.3s ease; }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .card { background: var(--card-bg); border-radius: var(--radius); padding: clamp(1rem, 3vw, 1.25rem); box-shadow: var(--shadow); border: 1px solid var(--border); display: flex; flex-direction: column; gap: var(--gap); }
+        .card-header { display: flex; align-items: center; justify-content: space-between; font-weight: 700; font-size: clamp(1rem, 3vw, 1.1rem); color: var(--text); flex-wrap: wrap; gap: 0.5rem; }
+        .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--gap); }
+        .summary-card { background: var(--card-bg); padding: clamp(1rem, 3vw, 1.25rem); border-radius: var(--radius); text-align: center; box-shadow: var(--shadow); border: 1px solid var(--border); transition: transform 0.2s ease; display: flex; flex-direction: column; justify-content: center; }
+        .summary-card:active { transform: scale(0.98); }
+        .summary-label { font-size: clamp(0.75rem, 2vw, 0.8rem); color: var(--text-light); display: flex; align-items: center; justify-content: center; gap: 0.35rem; margin-bottom: 0.5rem; }
+        .summary-value { font-size: clamp(1.2rem, 4vw, 1.5rem); font-weight: 800; font-variant-numeric: tabular-nums; }
+        .positive { color: var(--income-dark); } .negative { color: var(--expense-dark); }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr 1.5fr 1fr auto; gap: clamp(0.5rem, 2vw, 0.75rem); align-items: end; }
+        input, select { width: 100%; padding: clamp(0.75rem, 2.5vw, 0.85rem); border: 1.5px solid var(--border); border-radius: 12px; font: inherit; font-size: clamp(0.9rem, 2.5vw, 0.95rem); background: #fafafa; }
+        input:focus, select:focus { outline: none; border-color: var(--primary); background: white; box-shadow: 0 0 0 3px rgba(26,115,232,0.15); }
+        .amount-input { text-align: right; font-weight: 700; font-size: clamp(1rem, 3vw, 1.1rem); }
+        .btn { background: var(--primary); color: white; border: none; padding: clamp(0.75rem, 2.5vw, 0.85rem) clamp(1rem, 3vw, 1.25rem); border-radius: 12px; cursor: pointer; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 0.5rem; font-size: clamp(0.85rem, 2.5vw, 0.95rem); min-height: 48px; box-shadow: 0 2px 8px rgba(26,115,232,0.3); transition: all 0.2s ease; white-space: nowrap; }
+        .btn:active { transform: scale(0.96); }
+        .btn-sm { padding: clamp(0.4rem, 1.5vw, 0.5rem) clamp(0.6rem, 2vw, 0.75rem); font-size: clamp(0.75rem, 2vw, 0.85rem); min-height: auto; box-shadow: none; }
+        .btn-budget { background: linear-gradient(135deg, #667eea, #764ba2); }
+        .transaction-list { display: flex; flex-direction: column; gap: clamp(0.5rem, 2vw, 0.75rem); }
+        .transaction-card { background: var(--card-bg); border-radius: 14px; padding: clamp(0.85rem, 2.5vw, 1rem); display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 4px rgba(0,0,0,0.05); border: 1px solid var(--border); transition: all 0.2s ease; flex-wrap: wrap; gap: 0.5rem; }
+        .transaction-card:active { transform: scale(0.98); }
+        .trans-left { flex: 1; min-width: 0; }
+        .trans-date { font-size: clamp(0.75rem, 2vw, 0.8rem); color: var(--text-light); }
+        .trans-cat { font-weight: 600; font-size: clamp(0.85rem, 2.5vw, 0.95rem); display: flex; align-items: center; gap: 0.5rem; margin: 0.25rem 0; }
+        .trans-desc { font-size: clamp(0.75rem, 2vw, 0.85rem); color: var(--text-light); }
+        .trans-amount { font-weight: 800; font-size: clamp(1.1rem, 3vw, 1.2rem); font-variant-numeric: tabular-nums; white-space: nowrap; }
+        .chart-container { position: relative; height: clamp(200px, 40vh, 260px); border-radius: var(--radius); overflow: hidden; background: var(--card-bg); padding: clamp(0.75rem, 2vw, 1rem); box-shadow: inset 0 1px 4px rgba(0,0,0,0.05); }
+        .fab { position: fixed; bottom: clamp(1rem, 3vw, 1.5rem); right: clamp(1rem, 3vw, 1.5rem); background: var(--primary); color: white; width: clamp(50px, 12vw, 60px); height: clamp(50px, 12vw, 60px); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: clamp(1.2rem, 4vw, 1.6rem); box-shadow: 0 6px 20px rgba(26,115,232,0.4); z-index: 100; cursor: pointer; }
+        #login-modal, #goals-modal, #budget-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: var(--padding); }
+        .modal-content { background: var(--card-bg); padding: clamp(1.5rem, 4vw, 2rem); border-radius: var(--radius); width: 100%; max-width: 420px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.2); display: flex; flex-direction: column; gap: var(--gap); }
+        .modal-content h2 { font-size: clamp(1.2rem, 4vw, 1.4rem); color: var(--primary); display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+        .modal-content input { width: 100%; padding: clamp(0.75rem, 2.5vw, 0.85rem); border: 1.5px solid var(--border); border-radius: 12px; font-size: clamp(1rem, 3vw, 1.1rem); text-align: center; }
+        .emoji { font-size: clamp(1.1rem, 3vw, 1.2rem); }
+        .total-row { padding: clamp(0.6rem, 2vw, 0.75rem) 0; text-align: right; font-weight: 700; font-size: clamp(0.9rem, 2.5vw, 1rem); }
+        .budget-progress { background: rgba(0,0,0,0.1); height: 10px; border-radius: 5px; overflow: hidden; margin: 0.5rem 0; }
+        .budget-fill { height: 100%; background: linear-gradient(90deg, #4caf50, #8bc34a); border-radius: 5px; transition: width 0.6s ease; }
+        @media (max-width: 768px) { .form-row { grid-template-columns: 1fr 1fr; } .form-row > *:nth-child(5) { grid-column: 1 / -1; } }
+        @media (max-width: 480px) { :root { --gap: 0.75rem; --padding: 0.75rem; } .form-row { grid-template-columns: 1fr; } .form-row > * { grid-column: 1 / -1; } .summary-grid { grid-template-columns: 1fr; } .tabs { flex-direction: column; padding: 0.25rem; } .tab { margin: 0.25rem 0; } .transaction-card { flex-direction: column; align-items: flex-start; } .trans-amount { margin-left: auto; } .card-header { flex-direction: column; align-items: flex-start; } .btn { width: 100%; } }
+        @media (min-width: 1200px) { .container { max-width: 900px; } }
+    </style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-modal">
+    <div class="modal-content">
+        <h2><i class="fas fa-shield-alt"></i> Secure Access</h2>
+        <p style="color:var(--text-light);">Enter your master password</p>
+        <input type="password" id="password-input" placeholder="••••••••">
+        <button class="btn" onclick="login()">Unlock App</button>
+        <p style="font-size:0.8rem; color:#999;">Default: <strong>finance2025</strong></p>
+    </div>
+</div>
+
+<!-- GOALS MODAL (EDIT) -->
+<div id="goals-modal" style="display:none;">
+    <div class="modal-content">
+        <h2><i class="fas fa-bullseye"></i> Set Monthly Goals</h2>
+        <p style="color:var(--text-light);">Enter budget limit per category</p>
+        <div id="goals-form" style="max-height:60vh; overflow-y:auto; display:flex; flex-direction:column; gap:0.75rem;"></div>
+        <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+            <button class="btn" style="flex:1; background:#666;" onclick="closeGoalsModal()">Cancel</button>
+            <button class="btn" style="flex:1;" onclick="saveGoals()">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- BUDGET OVERVIEW MODAL (VIEW ONLY) -->
+<div id="budget-modal" style="display:none;">
+    <div class="modal-content">
+        <h2><i class="fas fa-chart-pie"></i> Budget Overview</h2>
+        <div id="budget-summary" style="text-align:left; max-height:65vh; overflow-y:auto;"></div>
+        <button class="btn" style="margin-top:1rem;" onclick="closeBudgetModal()">Close</button>
+    </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app-content" style="display:none;">
+    <header>
+        <div class="app-title"><i class="fas fa-wallet"></i> LKR Finance Pro</div>
+    </header>
+
+    <div class="container">
+        <div class="tabs">
+            <div class="tab active" data-tab="dashboard"><span class="emoji">📊</span> Dashboard</div>
+            <div class="tab" data-tab="income"><span class="emoji">💰</span> Income</div>
+            <div class="tab" data-tab="expenses"><span class="emoji">🛒</span> Expenses</div>
+        </div>
+
+        <!-- DASHBOARD -->
+        <div id="dashboard" class="tab-content active">
+            <div class="summary-grid">
+                <div class="summary-card">
+                    <div class="summary-label"><i class="fas fa-arrow-up"></i> Income</div>
+                    <div class="summary-value positive" id="total-income">LKR 0.00</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-label"><i class="fas fa-arrow-down"></i> Expenses</div>
+                    <div class="summary-value negative" id="total-expenses">LKR 0.00</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-label"><i class="fas fa-balance-scale"></i> Balance</div>
+                    <div class="summary-value" id="net-balance">LKR 0.00</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-label"><i class="fas fa-check-circle"></i> Status</div>
+                    <div id="status-text" style="font-weight:700;">—</div>
+                </div>
+            </div>
+
+            <!-- BUDGET BUTTON -->
+            <div class="card">
+                <button class="btn btn-budget" style="width:100%; font-size:1rem;" onclick="openBudgetModal()">
+                    <i class="fas fa-chart-pie"></i> View Budget Overview
+                </button>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span><i class="fas fa-chart-line"></i> Monthly Trend</span>
+                    <button class="btn btn-sm" style="background:var(--income-dark);" onclick="exportCSV()"><i class="fas fa-file-csv"></i></button>
+                </div>
+                <div class="chart-container">
+                    <canvas id="monthlyChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header"><i class="fas fa-history"></i> Recent Activity</div>
+                <div id="recent-list" class="transaction-list"></div>
+            </div>
+        </div>
+
+        <!-- INCOME TAB -->
+        <div id="income" class="tab-content">
+            <div class="card">
+                <div class="card-header"><i class="fas fa-plus-circle"></i> Add Income</div>
+                <div class="form-row">
+                    <input type="date" id="inc-date" required>
+                    <select id="inc-category" required>
+                        <option value="">Category</option>
+                        <option value="Salary">📥 Salary</option>
+                        <option value="Freelance">💼 Freelance</option>
+                        <option value="Investments">📈 Investments</option>
+                        <option value="Other">🎁 Other</option>
+                    </select>
+                    <input type="text" id="inc-desc" placeholder="Note (optional)">
+                    <input type="number" id="inc-amount" class="amount-input" placeholder="0.00" step="0.01" min="0">
+                    <button class="btn" onclick="addIncome()"><i class="fas fa-plus"></i></button>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header"><i class="fas fa-list"></i> Income History</div>
+                <div id="income-list" class="transaction-list"></div>
+                <div class="total-row" style="color:var(--income-dark);">Total: <span id="income-total">LKR 0.00</span></div>
+            </div>
+        </div>
+
+        <!-- EXPENSES TAB -->
+        <div id="expenses" class="tab-content">
+            <div class="card">
+                <div class="card-header"><i class="fas fa-minus-circle"></i> Add Expense</div>
+                <div class="form-row">
+                    <input type="date" id="exp-date" required>
+                    <select id="exp-category" required>
+                        <option value="">Category</option>
+                        <option value="Food & Dining">🍲 Food & Dining</option>
+                        <option value="Transportation">🚌 Transport</option>
+                        <option value="Utilities">⚡ Utilities</option>
+                        <option value="Health & Wellness">🏋️ Health</option>
+                        <option value="Entertainment">🎥 Fun</option>
+                        <option value="Education">📚 Education</option>
+                        <option value="Miscellaneous">🛍️ Other</option>
+                    </select>
+                    <input type="text" id="exp-desc" placeholder="Note (optional)">
+                    <input type="number" id="exp-amount" class="amount-input" placeholder="0.00" step="0.01" min="0">
+                    <button class="btn" onclick="addExpense()"><i class="fas fa-plus"></i></button>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header"><i class="fas fa-list"></i> Expense History</div>
+                <div id="expense-list" class="transaction-list"></div>
+                <div class="total-row" style="color:var(--expense-dark);">Total: <span id="expense-total">LKR 0.00</span></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- FAB (Edit Goals) -->
+<div class="fab" onclick="openGoalsModal()"><i class="fas fa-cog"></i></div>
+
+<script>
+    const { DateTime } = luxon;
+    let income = JSON.parse(localStorage.getItem('income')) || [];
+    let expenses = JSON.parse(localStorage.getItem('expenses')) || [];
+    let budgetGoals = JSON.parse(localStorage.getItem('budgetGoals')) || {
+        'Food & Dining': 15000, 'Transportation': 8000, 'Utilities': 10000,
+        'Health & Wellness': 5000, 'Entertainment': 6000, 'Education': 7000, 'Miscellaneous': 5000
+    };
+    let chartInstance = null;
+
+    function login() {
+        if (document.getElementById('password-input').value === 'finance2025') {
+            document.getElementById('login-modal').style.display = 'none';
+            document.getElementById('app-content').style.display = 'block';
+            initApp();
+        } else alert('Wrong password');
+    }
+
+    function initApp() {
+        document.getElementById('inc-date').valueAsDate = new Date();
+        document.getElementById('exp-date').valueAsDate = new Date();
+        renderAll();
+    }
+
+    function renderAll() { renderIncome(); renderExpenses(); updateDashboard(); }
+
+    function renderIncome() {
+        const list = document.getElementById('income-list'); list.innerHTML = ''; let total = 0;
+        income.forEach((i, idx) => { total += i.amount; list.appendChild(createCard(i, 'income', idx)); });
+        document.getElementById('income-total').textContent = formatLKR(total);
+    }
+
+    function renderExpenses() {
+        const list = document.getElementById('expense-list'); list.innerHTML = ''; let total = 0;
+        expenses.forEach((e, idx) => { total += e.amount; list.appendChild(createCard(e, 'expense', idx)); });
+        document.getElementById('expense-total').textContent = formatLKR(total);
+    }
+
+    function createCard(item, type, idx) {
+        const card = document.createElement('div'); card.className = 'transaction-card';
+        const color = type === 'income' ? 'var(--income-dark)' : 'var(--expense-dark)';
+        const sign = type === 'income' ? '+' : '-';
+        const emoji = getEmoji(item.category, type);
+        card.innerHTML = `
+            <div class="trans-left">
+                <div class="trans-date">${formatDate(item.date)}</div>
+                <div class="trans-cat"><span class="emoji">${emoji}</span> ${item.category}</div>
+                ${item.desc !== '—' ? `<div class="trans-desc">${item.desc}</div>` : ''}
+            </div>
+            <div style="display:flex; align-items:center; gap:0.5rem;">
+                <div class="trans-amount" style="color:${color}">${sign}${formatLKR(item.amount)}</div>
+                <button class="btn btn-sm" style="background:#db4437;" onclick="delete${type.charAt(0).toUpperCase() + type.slice(1)}(${idx})"><i class="fas fa-trash"></i></button>
+            </div>
+        `;
+        return card;
+    }
+
+    function getEmoji(cat, type) {
+        const map = {
+            income: { Salary: '📥', Freelance: '💼', Investments: '📈', Other: '🎁' },
+            expense: { 'Food & Dining': '🍲', Transportation: '🚌', Utilities: '⚡', 'Health & Wellness': '🏋️', Entertainment: '🎥', Education: '📚', Miscellaneous: '🛍️' }
+        };
+        return map[type]?.[cat] || '';
+    }
+
+    function addIncome() { addTrans('income'); }
+    function addExpense() { addTrans('expense'); }
+    function addTrans(type) {
+        const prefix = type === 'income' ? 'inc' : 'exp';
+        const date = document.getElementById(prefix + '-date').value;
+        const cat = document.getElementById(prefix + '-category').value;
+        const desc = document.getElementById(prefix + '-desc').value.trim() || '—';
+        const amt = parseFloat(document.getElementById(prefix + '-amount').value) || 0;
+        if (!date || !cat || amt <= 0) return alert('Fill all required');
+        (type === 'income' ? income : expenses).push({ date, category: cat, desc, amount: amt });
+        localStorage.setItem(type, JSON.stringify(type === 'income' ? income : expenses));
+        resetForm(type); renderAll();
+    }
+
+    function resetForm(type) {
+        const p = type === 'income' ? 'inc' : 'exp';
+        document.getElementById(p + '-date').valueAsDate = new Date();
+        document.getElementById(p + '-category').value = '';
+        document.getElementById(p + '-desc').value = '';
+        document.getElementById(p + '-amount').value = '';
+    }
+
+    function deleteIncome(idx) { deleteItem('income', idx); }
+    function deleteExpense(idx) { deleteItem('expense', idx); }
+    function deleteItem(type, idx) {
+        const arr = type === 'income' ? income : expenses;
+        arr.splice(idx, 1); localStorage.setItem(type, JSON.stringify(arr)); renderAll();
+    }
+
+    function openGoalsModal() {
+        const form = document.getElementById('goals-form'); form.innerHTML = '';
+        Object.keys(budgetGoals).forEach(cat => {
+            const spent = getMonthSpend(cat);
+            form.innerHTML += `
+                <div>
+                    <label style="display:block; font-weight:600; margin-bottom:0.35rem;"><span class="emoji">${getEmoji(cat, 'expense')}</span> ${cat}</label>
+                    <input type="number" data-cat="${cat}" value="${budgetGoals[cat]}" placeholder="Budget goal">
+                    <div style="font-size:0.8rem; color:#666;">Spent: ${formatLKR(spent)}</div>
+                </div>`;
+        });
+        document.getElementById('goals-modal').style.display = 'flex';
+    }
+
+    function closeGoalsModal() { document.getElementById('goals-modal').style.display = 'none'; }
+    function saveGoals() {
+        document.querySelectorAll('#goals-form input').forEach(i => {
+            const val = parseFloat(i.value) || 0;
+            if (val > 0) budgetGoals[i.dataset.cat] = val;
+        });
+        localStorage.setItem('budgetGoals', JSON.stringify(budgetGoals));
+        closeGoalsModal(); renderAll();
+    }
+
+    function openBudgetModal() {
+        const sum = document.getElementById('budget-summary'); sum.innerHTML = '';
+        let totalGoal = 0, totalSpent = 0;
+        Object.keys(budgetGoals).forEach(cat => {
+            const goal = budgetGoals[cat], spent = getMonthSpend(cat);
+            totalGoal += goal; totalSpent += spent;
+            const pct = goal > 0 ? (spent / goal) * 100 : 0;
+            const over = spent > goal;
+            sum.innerHTML += `
+                <div style="margin:1rem 0; padding:0.75rem; background:rgba(0,0,0,0.03); border-radius:12px;">
+                    <div style="display:flex; justify-content:space-between; font-weight:600;">
+                        <span><span class="emoji">${getEmoji(cat, 'expense')}</span> ${cat}</span>
+                        <span style="color:${over?'#ff5252':'inherit'}">${formatLKR(spent)} / ${formatLKR(goal)}</span>
+                    </div>
+                    <div class="budget-progress">
+                        <div class="budget-fill" style="width:${Math.min(pct,100)}%; background:${over?'#ff5252':'linear-gradient(90deg,#4caf50,#8bc34a)'}"></div>
+                    </div>
+                    <div style="font-size:0.8rem; display:flex; justify-content:space-between; color:#555;">
+                        <span>${pct.toFixed(0)}% used</span>
+                        <span style="color:${over?'#ff5252':'#4caf50'}">${over?formatLKR(spent-goal)+' over':formatLKR(goal-spent)+' left'}</span>
+                    </div>
+                </div>`;
+        });
+        const totalPct = totalGoal > 0 ? (totalSpent / totalGoal) * 100 : 0;
+        sum.innerHTML += `
+            <div style="margin-top:1rem; padding:1rem; background:rgba(26,115,232,0.1); border-radius:12px; font-weight:600;">
+                <div style="display:flex; justify-content:space-between;">
+                    <span>Total Budget</span>
+                    <span>${formatLKR(totalSpent)} / ${formatLKR(totalGoal)} (${totalPct.toFixed(0)}%)</span>
+                </div>
+            </div>`;
+        document.getElementById('budget-modal').style.display = 'flex';
+    }
+
+    function closeBudgetModal() { document.getElementById('budget-modal').style.display = 'none'; }
+
+    function getMonthSpend(cat) {
+        const month = DateTime.now().toFormat('yyyy-MM');
+        return expenses.filter(e => e.date.startsWith(month) && e.category === cat).reduce((s, e) => s + e.amount, 0);
+    }
+
+    function updateDashboard() {
+        const inc = income.reduce((s, i) => s + i.amount, 0);
+        const exp = expenses.reduce((s, e) => s + e.amount, 0);
+        const net = inc - exp;
+        document.getElementById('total-income').textContent = formatLKR(inc);
+        document.getElementById('total-expenses').textContent = formatLKR(exp);
+        document.getElementById('net-balance').textContent = formatLKR(net);
+        document.getElementById('net-balance').className = net >= 0 ? 'positive' : 'negative';
+        document.getElementById('status-text').innerHTML = net >= 0 
+            ? `<span style="color:var(--income-dark);">✅ Surplus: ${formatLKR(net)}</span>` 
+            : `<span style="color:var(--expense-dark);">⚠️ Deficit: ${formatLKR(-net)}</span>`;
+
+        const all = [...income.map(i=>({...i,type:'income'})), ...expenses.map(e=>({...e,type:'expense'}))];
+        all.sort((a,b)=>b.date.localeCompare(a.date));
+        const recent = all.slice(0,8);
+        const list = document.getElementById('recent-list'); 
+        list.innerHTML = recent.length ? '' : '<p style="text-align:center; color:#999; padding:1rem;">No activity yet</p>';
+        recent.forEach(t => {
+            const emoji = getEmoji(t.category, t.type);
+            const color = t.type === 'income' ? 'var(--income-dark)' : 'var(--expense-dark)';
+            const sign = t.type === 'income' ? '+' : '-';
+            list.innerHTML += `
+                <div class="transaction-card">
+                    <div class="trans-left">
+                        <div class="trans-date">${formatDate(t.date)}</div>
+                        <div class="trans-cat"><span class="emoji">${emoji}</span> ${t.category}</div>
+                        ${t.desc !== '—' ? `<div class="trans-desc">${t.desc}</div>` : ''}
+                    </div>
+                    <div class="trans-amount" style="color:${color}">${sign}${formatLKR(t.amount)}</div>
+                </div>`;
+        });
+        renderChart();
+    }
+
+    function renderChart() {
+        const ctx = document.getElementById('monthlyChart').getContext('2d');
+        const now = DateTime.now(); const incM = {}, expM = {};
+        for (let i=5; i>=0; i--) { const m = now.minus({months:i}).toFormat('yyyy-MM'); incM[m]=0; expM[m]=0; }
+        income.forEach(i=>{const m=i.date.slice(0,7); if(incM[m]!==undefined) incM[m]+=i.amount;});
+        expenses.forEach(e=>{const m=e.date.slice(0,7); if(expM[m]!==undefined) expM[m]+=e.amount;});
+        const labels = Object.keys(incM).map(m=>DateTime.fromFormat(m,'yyyy-MM').toFormat('MMM yyyy'));
+        if(chartInstance) chartInstance.destroy();
+        chartInstance = new Chart(ctx, {type:'bar', data:{labels, datasets:[
+            {label:'Income', data:Object.values(incM), backgroundColor:'rgba(15,157,88,0.7)'},
+            {label:'Expense', data:Object.values(expM), backgroundColor:'rgba(219,68,55,0.7)'}
+        ]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'top'}}}});
+    }
+
+    function exportCSV() {
+        let csv = 'Type,Date,Category,Description,Amount\n';
+        income.forEach(i=>csv+=`Income,${i.date},${i.category},${i.desc},${i.amount}\n`);
+        expenses.forEach(e=>csv+=`Expense,${e.date},${e.category},${e.desc},${e.amount}\n`);
+        const blob = new Blob([csv], {type:'text/csv'});
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+        a.download = `LKR-Finance-${DateTime.now().toFormat('yyyy-MM-dd')}.csv`; a.click();
+    }
+
+    function formatLKR(a) { return new Intl.NumberFormat('en-LK', {style:'currency',currency:'LKR',minimumFractionDigits:2}).format(a); }
+    function formatDate(d) { return DateTime.fromISO(d).toFormat('dd MMM yyyy'); }
+
+    // Tab switching
+    document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
+        document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(x=>x.classList.remove('active'));
+        t.classList.add('active');
+        document.getElementById(t.dataset.tab).classList.add('active');
+    }));
+
+    // PWA: Register Service Worker
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('sw.js')
+                .then(reg => console.log('SW registered', reg))
+                .catch(err => console.log('SW failed', err));
+        });
+    }
+</script>
+</body>
+</html>
