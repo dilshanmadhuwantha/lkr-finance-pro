@@ -74,7 +74,7 @@
         .modal-content { background: var(--card-bg); padding: clamp(1.5rem, 4vw, 2rem); border-radius: var(--radius); width: 100%; max-width: 420px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.2); display: flex; flex-direction: column; gap: var(--gap); transition: background 0.3s ease; }
         .modal-content h2 { font-size: clamp(1.2rem, 4vw, 1.4rem); color: var(--primary); display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
         .modal-content input { width: 100%; padding: clamp(0.75rem, 2.5vw, 0.85rem); border: 1.5px solid var(--border); border-radius: 12px; font-size: clamp(1rem, 3vw, 1.1rem); text-align: center; background: var(--card-bg); color: var(--text); }
-        .emoji { font-size: clamp(1.1ELLE, 3vw, 1.2rem); }
+        .emoji { font-size: clamp(1.1rem, 3vw, 1.2rem); }
         .total-row { padding: clamp(0.6rem, 2vw, 0.75rem) 0; text-align: right; font-weight: 700; font-size: clamp(0.9rem, 2.5vw, 1rem); }
         .budget-progress { background: rgba(0,0,0,0.1); height: 10px; border-radius: 5px; overflow: hidden; margin: 0.5rem 0; }
         .budget-fill { height: 100%; background: linear-gradient(90deg, #4caf50, #8bc34a); border-radius: 5px; transition: width 0.6s ease; }
@@ -102,7 +102,7 @@
         <div id="password-fallback">
             <input type="password" id="password-input" placeholder="••••••••">
             <button class="btn" onclick="loginWithPassword()">Unlock with Password</button>
-            <p style="font-size:0.8rem; color:#999; margin-top:0.5rem;">Default: <strong>finance2025</strong></p>
+            <p style="font-size:0.8rem; color:#999; margin-top:0.5rem;">Password: <strong>TCpg@2014</strong></p>
         </div>
 
         <div id="cloud-status" class="cloud-status"></div>
@@ -142,7 +142,7 @@
         <span id="theme-icon">Dark Mode</span>
     </div>
 
-    <!-- CLOUD BACKUP BUTTON (FIXED ICON) -->
+    <!-- CLOUD BACKUP BUTTON -->
     <div style="position:fixed; top:1rem; left:1rem; z-index:200;">
         <button class="btn btn-sm cloud-btn" onclick="backupToCloud()">
             <i class="fas fa-cloud-upload-alt"></i> Backup
@@ -320,7 +320,7 @@
     }
 
     async function loginWithPassword() {
-        if (document.getElementById('password-input').value === 'finance2025') {
+        if (document.getElementById('password-input').value === 'TCpg@2014') {   // <-- NEW PASSWORD
             try { await registerBiometric(); } catch {}
             unlockApp();
         } else alert('Wrong password');
@@ -343,9 +343,10 @@
             user = await new Promise((resolve) => auth.signInAnonymously().then(u => resolve(u.user)));
             db = firestore.collection('users').doc(user.uid);
             document.getElementById('cloud-status').innerHTML = 'Connected';
-            await restoreFromCloud();
+            await restoreFromCloud();   // <-- will call renderAll()
         } catch (e) {
             document.getElementById('cloud-status').innerHTML = 'Offline';
+            renderAll();   // fallback to local data
         }
     }
 
@@ -380,10 +381,12 @@
                     localStorage.setItem('theme', data.theme);
                 }
                 saveToLocalStorage();
-                renderAll();
+                renderAll();   // <-- RENDER AFTER RESTORE
                 document.getElementById('cloud-status').innerHTML = `Restored ${DateTime.fromISO(data.timestamp).toFormat('dd MMM yyyy HH:mm')}`;
+            } else {
+                renderAll();   // first-time user
             }
-        } catch (e) { console.log("Restore failed", e); }
+        } catch (e) { console.log("Restore failed", e); renderAll(); }
     }
 
     function saveToLocalStorage() {
@@ -395,8 +398,8 @@
     function unlockApp() {
         document.getElementById('login-modal').style.display = 'none';
         document.getElementById('app-content').style.display = 'block';
-        initApp();
-        initCloud();
+        initApp();          // loads local + dates
+        initCloud();        // starts cloud restore → renders when ready
     }
 
     // Show biometric if available
@@ -411,9 +414,9 @@
     function initApp() {
         document.getElementById('inc-date').valueAsDate = new Date();
         document.getElementById('exp-date').valueAsDate = new Date();
-        loadFromLocalStorage();
+        loadFromLocalStorage();      // pulls what is already in localStorage
         initDateFilter();
-        renderAll();
+        // renderAll() is called from restoreFromCloud()
     }
 
     function loadFromLocalStorage() {
@@ -664,7 +667,7 @@
     function formatLKR(a) { return new Intl.NumberFormat('en-LK', {style:'currency',currency:'LKR',minimumFractionDigits:2}).format(a); }
     function formatDate(d) { return DateTime.fromISO(d).toFormat('dd MMM yyyy'); }
 
-    // TAB SWITCHING (FIXED)
+    // TAB SWITCHING
     document.querySelectorAll('.tab').forEach(tab => {
         tab.addEventListener('click', () => {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
