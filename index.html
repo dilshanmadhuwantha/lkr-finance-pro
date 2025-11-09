@@ -102,7 +102,7 @@
         <div id="password-fallback">
             <input type="password" id="password-input" placeholder="••••••••">
             <button class="btn" onclick="loginWithPassword()">Unlock with Password</button>
-            <p style="font-size:0.8rem; color:#999; margin-top:0.5rem;">Password: <strong>TCpg@2014</strong></p>
+            
         </div>
 
         <div id="cloud-status" class="cloud-status"></div>
@@ -281,13 +281,14 @@
 
     // === PASTE YOUR FIREBASE CONFIG HERE ===
     const firebaseConfig = {
-      apiKey: "YOUR_API_KEY",
-      authDomain: "YOUR_PROJECT.firebaseapp.com",
-      projectId: "YOUR_PROJECT_ID",
-      storageBucket: "YOUR_PROJECT.appspot.com",
-      messagingSenderId: "123456789",
-      appId: "1:123456789:web:abcdef123456"
-    };
+  apiKey: "AIzaSyCpc3QxeeP1OUu4XXv8GtbXq53-a69fxdQ",
+  authDomain: "lkr-finance-pro.firebaseapp.com",
+  projectId: "lkr-finance-pro",
+  storageBucket: "lkr-finance-pro.firebasestorage.app",
+  messagingSenderId: "77274353339",
+  appId: "1:77274353339:web:c7b3b2711a5da69e87e39e"
+};
+
     // ========================================
 
     // Initialize Firebase
@@ -320,7 +321,7 @@
     }
 
     async function loginWithPassword() {
-        if (document.getElementById('password-input').value === 'TCpg@2014') {   // <-- NEW PASSWORD
+        if (document.getElementById('password-input').value === 'TCpg@2014') {
             try { await registerBiometric(); } catch {}
             unlockApp();
         } else alert('Wrong password');
@@ -343,10 +344,10 @@
             user = await new Promise((resolve) => auth.signInAnonymously().then(u => resolve(u.user)));
             db = firestore.collection('users').doc(user.uid);
             document.getElementById('cloud-status').innerHTML = 'Connected';
-            await restoreFromCloud();   // <-- will call renderAll()
+            await restoreFromCloud();
         } catch (e) {
             document.getElementById('cloud-status').innerHTML = 'Offline';
-            renderAll();   // fallback to local data
+            renderAll();
         }
     }
 
@@ -381,10 +382,10 @@
                     localStorage.setItem('theme', data.theme);
                 }
                 saveToLocalStorage();
-                renderAll();   // <-- RENDER AFTER RESTORE
+                renderAll();
                 document.getElementById('cloud-status').innerHTML = `Restored ${DateTime.fromISO(data.timestamp).toFormat('dd MMM yyyy HH:mm')}`;
             } else {
-                renderAll();   // first-time user
+                renderAll();
             }
         } catch (e) { console.log("Restore failed", e); renderAll(); }
     }
@@ -398,8 +399,8 @@
     function unlockApp() {
         document.getElementById('login-modal').style.display = 'none';
         document.getElementById('app-content').style.display = 'block';
-        initApp();          // loads local + dates
-        initCloud();        // starts cloud restore → renders when ready
+        initApp();
+        initCloud();
     }
 
     // Show biometric if available
@@ -414,7 +415,7 @@
     function initApp() {
         document.getElementById('inc-date').valueAsDate = new Date();
         document.getElementById('exp-date').valueAsDate = new Date();
-        loadFromLocalStorage();      // pulls what is already in localStorage
+        loadFromLocalStorage();
         initDateFilter();
         // renderAll() is called from restoreFromCloud()
     }
@@ -516,7 +517,7 @@
         const amt = parseFloat(document.getElementById(prefix + '-amount').value) || 0;
         if (!date || !cat || amt <= 0) return alert('Fill all required');
         (type === 'income' ? income : expenses).push({ date, category: cat, desc, amount: amt });
-        localStorage.setItem(type, JSON.stringify(type === 'income' ? income : expenses));
+        localStorage.setItem(type, JSON.stringify(type === 'income' ? income : expenses));   // ← FIXED LINE
         resetForm(type); renderAll(); backupToCloud();
     }
 
