@@ -7,8 +7,9 @@
     
     <!-- PWA -->
     <link rel="manifest" href="manifest.json">
-    <link rel="icon" href="icon-192.png" sizes="192x192">
-    <link rel="apple-touch-icon" href="icon-192.png">
+    <!-- EMBEDDED ICON (no 404) -->
+    <link rel="icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMAAAADACAAAAABO6f3lAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAB3RJTUUH6AMFCgY5Yk6zNwAAAAd0SU1FB+0LDAg0J7zY4qIAAAGRSURBVHja7cExAQAAAMKg9U9tCF+gAAAAAAAAAAAAAIA3AQAAAP8BAAD//0oAAAAASUVORK5CYII=" sizes="192x192">
+    <link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMAAAADACAAAAABO6f3lAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAB3RJTUUH6AMFCgY5Yk6zNwAAAAd0SU1FB+0LDAg0J7zY4qIAAAGRSURBVHja7cExAQAAAMKg9U9tCF+gAAAAAAAAAAAAAIA3AQAAAP8BAAD//0oAAAAASUVORK5CYII=">
     <meta name="theme-color" content="#1a73e8">
 
     <!-- Fonts & Icons -->
@@ -316,7 +317,7 @@
         document.getElementById('theme-icon').textContent = 'Light Mode';
     }
 
-    // ---------- BIOMETRIC ----------
+    // ---------- BIOMETRIC (safe) ----------
     async function tryBiometric() {
         if (!window.PublicKeyCredential) return fallbackToPassword();
         if (!localStorage.getItem('biometricRegistered')) return fallbackToPassword();
@@ -331,8 +332,17 @@
     }
     async function registerBiometric() {
         if (!window.PublicKeyCredential || localStorage.getItem('biometricRegistered')) return;
-        await navigator.credentials.create({ publicKey: { challenge: new Uint8Array(32), rp: { name: "LKR Finance" }, user: { id: new Uint8Array(16), name: "user", displayName: "User" }, pubKeyCredParams: [{ type: "public-key", alg: -7 }] } });
-        localStorage.setItem('biometricRegistered', 'true');
+        try {
+            await navigator.credentials.create({
+                publicKey: {
+                    challenge: new Uint8Array(32),
+                    rp: { name: "LKR Finance" },
+                    user: { id: new Uint8Array(16), name: "user", displayName: "User" },
+                    pubKeyCredParams: [{ type: "public-key", alg: -7 }, { type: "public-key", alg: -257 }]
+                }
+            });
+            localStorage.setItem('biometricRegistered', 'true');
+        } catch (e) { console.warn('Biometric registration skipped', e); }
     }
     function fallbackToPassword() {
         document.getElementById('biometric-btn').style.display = 'none';
@@ -372,7 +382,7 @@
             const snap = await db.get();
             if (snap.exists) {
                 const data = snap.data();
-                console.log('Firestore data loaded:', data);   // <-- DEBUG
+                console.log('Firestore data loaded:', data);
                 income = data.income || [];
                 expenses = data.expenses || [];
                 budgetGoals = data.budgetGoals || budgetGoals;
@@ -381,7 +391,6 @@
                     document.getElementById('theme-icon').textContent = data.theme === 'dark' ? 'Light Mode' : 'Dark Mode';
                     localStorage.setItem('theme', data.theme);
                 }
-                // *** IMPORTANT *** sync localStorage then refresh UI
                 saveToLocalStorage();
                 renderAll();
                 document.getElementById('cloud-status').innerHTML = `Restored ${DateTime.fromISO(data.timestamp).toFormat('dd MMM yyyy HH:mm')}`;
@@ -420,7 +429,7 @@
     function initApp() {
         document.getElementById('inc-date').valueAsDate = new Date();
         document.getElementById('exp-date').valueAsDate = new Date();
-        loadFromLocalStorage();          // fallback if no cloud
+        loadFromLocalStorage();
         initDateFilter();
     }
     function loadFromLocalStorage() {
@@ -554,141 +563,4 @@
         });
         document.getElementById('goals-modal').style.display = 'flex';
     }
-    function closeGoalsModal() { document.getElementById('goals-modal').style.display = 'none'; }
-    function saveGoals() {
-        document.querySelectorAll('#goals-form input').forEach(i => {
-            const v = parseFloat(i.value) || 0;
-            if (v > 0) budgetGoals[i.dataset.cat] = v;
-        });
-        localStorage.setItem('budgetGoals', JSON.stringify(budgetGoals));
-        closeGoalsModal(); renderAll(); backupToCloud();
-    }
-
-    // ---------- BUDGET MODAL ----------
-    function openBudgetModal() {
-        const sum = document.getElementById('budget-summary'); sum.innerHTML = '';
-        let totalGoal = 0, totalSpent = 0;
-        Object.keys(budgetGoals).forEach(cat => {
-            const goal = budgetGoals[cat];
-            const spent = expenses
-                .filter(e => e.category === cat && (!filterFrom || e.date >= filterFrom) && (!filterTo || e.date <= filterTo))
-                .reduce((s, e) => s + e.amount, 0);
-            totalGoal += goal; totalSpent += spent;
-            const pct = goal > 0 ? (spent / goal) * 100 : 0;
-            const over = spent > goal;
-            sum.innerHTML += `
-                <div style="margin:1rem 0; padding:0.75rem; background:rgba(0,0,0,0.03); border-radius:12px;">
-                    <div style="display:flex; justify-content:space-between; font-weight:600;">
-                        <span><span class="emoji">${getEmoji(cat, 'expense')}</span> ${cat}</span>
-                        <span style="color:${over?'#ff5252':'inherit'}">${formatLKR(spent)} / ${formatLKR(goal)}</span>
-                    </div>
-                    <div class="budget-progress">
-                        <div class="budget-fill" style="width:${Math.min(pct,100)}%; background:${over?'#ff5252':'linear-gradient(90deg,#4caf50,#8bc34a)'}"></div>
-                    </div>
-                    <div style="font-size:0.8rem; display:flex; justify-content:space-between; color:#555;">
-                        <span>${pct.toFixed(0)}% used</span>
-                        <span style="color:${over?'#ff5252':'#4caf50'}">${over?formatLKR(spent-goal)+' over':formatLKR(goal-spent)+' left'}</span>
-                    </div>
-                </div>`;
-        });
-        const totalPct = totalGoal > 0 ? (totalSpent / totalGoal) * 100 : 0;
-        const range = filterFrom ? `(${formatDate(filterFrom)} – ${formatDate(filterTo)})` : '';
-        sum.innerHTML += `
-            <div style="margin-top:1rem; padding:1rem; background:rgba(26,115,232,0.1); border-radius:12px; font-weight:600;">
-                <div style="display:flex; justify-content:space-between;">
-                    <span>Total Budget ${range}</span>
-                    <span>${formatLKR(totalSpent)} / ${formatLKR(totalGoal)} (${totalPct.toFixed(0)}%)</span>
-                </div>
-            </div>`;
-        document.getElementById('budget-modal').style.display = 'flex';
-    }
-    function closeBudgetModal() { document.getElementById('budget-modal').style.display = 'none'; }
-
-    function getMonthSpend(cat) {
-        const month = DateTime.now().toFormat('yyyy-MM');
-        return expenses.filter(e => e.date.startsWith(month) && e.category === cat).reduce((s, e) => s + e.amount, 0);
-    }
-
-    // ---------- DASHBOARD ----------
-    function updateDashboard() {
-        const inc = income.reduce((s, i) => s + i.amount, 0);
-        const exp = expenses.reduce((s, e) => s + e.amount, 0);
-        const net = inc - exp;
-        document.getElementById('total-income').textContent = formatLKR(inc);
-        document.getElementById('total-expenses').textContent = formatLKR(exp);
-        document.getElementById('net-balance').textContent = formatLKR(net);
-        document.getElementById('net-balance').className = net >= 0 ? 'positive' : 'negative';
-        document.getElementById('status-text').innerHTML = net >= 0 
-            ? `<span style="color:var(--income-dark);">Surplus: ${formatLKR(net)}</span>` 
-            : `<span style="color:var(--expense-dark);">Deficit: ${formatLKR(-net)}</span>`;
-
-        const all = [...income.map(i=>({...i,type:'income'})), ...expenses.map(e=>({...e,type:'expense'}))];
-        all.sort((a,b)=>b.date.localeCompare(a.date));
-        const recent = filterTransactions(all).slice(0,8);
-        const list = document.getElementById('recent-list');
-        list.innerHTML = recent.length ? '' : '<p style="text-align:center; color:#999; padding:1rem;">No activity in range</p>';
-        recent.forEach(t => {
-            const emoji = getEmoji(t.category, t.type);
-            const color = t.type === 'income' ? 'var(--income-dark)' : 'var(--expense-dark)';
-            const sign = t.type === 'income' ? '+' : '-';
-            list.innerHTML += `
-                <div class="transaction-card">
-                    <div class="trans-left">
-                        <div class="trans-date">${formatDate(t.date)}</div>
-                        <div class="trans-cat"><span class="emoji">${emoji}</span> ${t.category}</div>
-                        ${t.desc !== '—' ? `<div class="trans-desc">${t.desc}</div>` : ''}
-                    </div>
-                    <div class="trans-amount" style="color:${color}">${sign}${formatLKR(t.amount)}</div>
-                </div>`;
-        });
-        renderChart();
-    }
-
-    function renderChart() {
-        const ctx = document.getElementById('monthlyChart').getContext('2d');
-        const now = DateTime.now(); const incM = {}, expM = {};
-        for (let i=5; i>=0; i--) { const m = now.minus({months:i}).toFormat('yyyy-MM'); incM[m]=0; expM[m]=0; }
-        income.forEach(i=>{const m=i.date.slice(0,7); if(incM[m]!==undefined) incM[m]+=i.amount;});
-        expenses.forEach(e=>{const m=e.date.slice(0,7); if(expM[m]!==undefined) expM[m]+=e.amount;});
-        const labels = Object.keys(incM).map(m=>DateTime.fromFormat(m,'yyyy-MM').toFormat('MMM yyyy'));
-        if(chartInstance) chartInstance.destroy();
-        chartInstance = new Chart(ctx, {type:'bar', data:{labels, datasets:[
-            {label:'Income', data:Object.values(incM), backgroundColor:'rgba(15,157,88,0.7)'},
-            {label:'Expense', data:Object.values(expM), backgroundColor:'rgba(219,68,55,0.7)'}
-        ]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'top'}}}});
-    }
-
-    function exportCSV() {
-        let csv = 'Type,Date,Category,Description,Amount\n';
-        filterTransactions(income).forEach(i=>csv+=`Income,${i.date},${i.category},${i.desc},${i.amount}\n`);
-        filterTransactions(expenses).forEach(e=>csv+=`Expense,${e.date},${e.category},${e.desc},${e.amount}\n`);
-        const blob = new Blob([csv], {type:'text/csv'});
-        const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-        const range = filterFrom ? `${filterFrom}_to_${filterTo}` : 'all-time';
-        a.download = `LKR-Finance-${range}-${DateTime.now().toFormat('yyyy-MM-dd')}.csv`; a.click();
-    }
-
-    function formatLKR(a) { return new Intl.NumberFormat('en-LK', {style:'currency',currency:'LKR',minimumFractionDigits:2}).format(a); }
-    function formatDate(d) { return DateTime.fromISO(d).toFormat('dd MMM yyyy'); }
-
-    // ---------- TABS ----------
-    document.querySelectorAll('.tab').forEach(tab => {
-        tab.addEventListener('click', () => {
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            tab.classList.add('active');
-            document.getElementById(tab.dataset.tab).classList.add('active');
-        });
-    });
-
-    // ---------- SERVICE WORKER ----------
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('sw.js')
-                .then(r => console.log('SW registered', r))
-                .catch(e => console.log('SW failed', e));
-        });
-    }
-</script>
-</body>
-</html>
+    function closeGoalsModal() { document.getElementById('goals-modal').style.display = '
