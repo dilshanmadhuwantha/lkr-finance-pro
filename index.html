@@ -356,6 +356,7 @@
             db = firestore.collection('users').doc(user.uid);
             document.getElementById('cloud-status').innerHTML = 'Connected';
             await restoreFromCloud();
+            initDateFilter();  // <-- MOVED HERE: AFTER data loads
         } catch (e) {
             document.getElementById('cloud-status').innerHTML = 'Offline';
             renderAll();
@@ -430,7 +431,7 @@
         document.getElementById('inc-date').valueAsDate = new Date();
         document.getElementById('exp-date').valueAsDate = new Date();
         loadFromLocalStorage();
-        initDateFilter();
+        // initDateFilter() moved to initCloud()
     }
     function loadFromLocalStorage() {
         income = JSON.parse(localStorage.getItem('income')) || [];
@@ -441,20 +442,16 @@
         };
     }
 
-    // ---------- DATE FILTER ----------
+    // ---------- DATE FILTER (DEFAULT = ALL TIME) ----------
     function initDateFilter() {
-        const now = DateTime.now();
-        const from = now.startOf('month').toFormat('yyyy-MM-dd');
-        const to = now.endOf('month').toFormat('yyyy-MM-dd');
-        document.getElementById('filter-from').value = from;
-        document.getElementById('filter-to').value = to;
-        filterFrom = from; filterTo = to;
+        document.getElementById('filter-from').value = '';
+        document.getElementById('filter-to').value = '';
+        filterFrom = filterTo = null;
     }
     function applyDateFilter() {
         const f = document.getElementById('filter-from').value;
         const t = document.getElementById('filter-to').value;
         filterFrom = f || null; filterTo = t || null;
-        if (!f && !t) initDateFilter();
         renderAll();
     }
     function resetDateFilter() {
