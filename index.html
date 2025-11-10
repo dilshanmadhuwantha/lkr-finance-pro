@@ -298,57 +298,51 @@
     };
     // ===============================
 
-    // Initialize Firebase
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const firestore = firebase.firestore();
 
-    // DARK MODE
+    // ---------- DARK MODE ----------
     function toggleTheme() {
         const body = document.body;
         const isDark = body.getAttribute('data-theme') === 'dark';
         body.setAttribute('data-theme', isDark ? 'light' : 'dark');
         document.getElementById('theme-icon').textContent = isDark ? 'Dark Mode' : 'Light Mode';
         localStorage.setItem('theme', isDark ? 'light' : 'dark');
-        saveToCloud();
+        backupToCloud();
     }
     if (localStorage.getItem('theme') === 'dark' || (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
         document.body.setAttribute('data-theme', 'dark');
         document.getElementById('theme-icon').textContent = 'Light Mode';
     }
 
-    // BIOMETRIC
+    // ---------- BIOMETRIC ----------
     async function tryBiometric() {
         if (!window.PublicKeyCredential) return fallbackToPassword();
         if (!localStorage.getItem('biometricRegistered')) return fallbackToPassword();
-        try {
-            await navigator.credentials.get({ publicKey: { challenge: new Uint8Array(32) } });
-            unlockApp();
-        } catch { fallbackToPassword(); }
+        try { await navigator.credentials.get({ publicKey: { challenge: new Uint8Array(32) } }); unlockApp(); }
+        catch { fallbackToPassword(); }
     }
-
     async function loginWithPassword() {
         if (document.getElementById('password-input').value === 'TCpg@2014') {
             try { await registerBiometric(); } catch {}
             unlockApp();
         } else alert('Wrong password');
     }
-
     async function registerBiometric() {
         if (!window.PublicKeyCredential || localStorage.getItem('biometricRegistered')) return;
         await navigator.credentials.create({ publicKey: { challenge: new Uint8Array(32), rp: { name: "LKR Finance" }, user: { id: new Uint8Array(16), name: "user", displayName: "User" }, pubKeyCredParams: [{ type: "public-key", alg: -7 }] } });
         localStorage.setItem('biometricRegistered', 'true');
     }
-
     function fallbackToPassword() {
         document.getElementById('biometric-btn').style.display = 'none';
         document.getElementById('password-fallback').style.display = 'block';
     }
 
-    // CLOUD BACKUP – ALWAYS RESTORE ON LOGIN
+    // ---------- CLOUD ----------
     async function initCloud() {
         try {
-            user = await new Promise((resolve) => auth.signInAnonymously().then(u => resolve(u.user)));
+            user = await new Promise(r => auth.signInAnonymously().then(u => r(u.user)));
             db = firestore.collection('users').doc(user.uid);
             document.getElementById('cloud-status').innerHTML = 'Connected';
             await restoreFromCloud();
@@ -362,11 +356,7 @@
 
     async function backupToCloud() {
         if (!db) return;
-        const data = {
-            income, expenses, budgetGoals,
-            theme: localStorage.getItem('theme') || 'light',
-            timestamp: DateTime.now().toISO()
-        };
+        const data = { income, expenses, budgetGoals, theme: localStorage.getItem('theme') || 'light', timestamp: DateTime.now().toISO() };
         try {
             await db.set(data);
             document.getElementById('backup-status').textContent = 'Backed up';
@@ -382,6 +372,7 @@
             const snap = await db.get();
             if (snap.exists) {
                 const data = snap.data();
+                console.log('Firestore data loaded:', data);   // <-- DEBUG
                 income = data.income || [];
                 expenses = data.expenses || [];
                 budgetGoals = data.budgetGoals || budgetGoals;
@@ -390,13 +381,17 @@
                     document.getElementById('theme-icon').textContent = data.theme === 'dark' ? 'Light Mode' : 'Dark Mode';
                     localStorage.setItem('theme', data.theme);
                 }
+                // *** IMPORTANT *** sync localStorage then refresh UI
                 saveToLocalStorage();
                 renderAll();
                 document.getElementById('cloud-status').innerHTML = `Restored ${DateTime.fromISO(data.timestamp).toFormat('dd MMM yyyy HH:mm')}`;
             } else {
                 renderAll();
             }
-        } catch (e) { console.log("Restore failed", e); renderAll(); }
+        } catch (e) {
+            console.error('Restore error', e);
+            renderAll();
+        }
     }
 
     function saveToLocalStorage() {
@@ -405,6 +400,7 @@
         localStorage.setItem('budgetGoals', JSON.stringify(budgetGoals));
     }
 
+    // ---------- LOGIN ----------
     function unlockApp() {
         document.getElementById('login-modal').style.display = 'none';
         document.getElementById('app-content').style.display = 'block';
@@ -412,8 +408,6 @@
         initApp();
         initCloud();
     }
-
-    // Show biometric if available
     window.addEventListener('load', () => {
         if (window.PublicKeyCredential && localStorage.getItem('biometricRegistered')) {
             document.getElementById('biometric-btn').style.display = 'flex';
@@ -422,13 +416,13 @@
         }
     });
 
+    // ---------- APP INIT ----------
     function initApp() {
         document.getElementById('inc-date').valueAsDate = new Date();
         document.getElementById('exp-date').valueAsDate = new Date();
-        loadFromLocalStorage();
+        loadFromLocalStorage();          // fallback if no cloud
         initDateFilter();
     }
-
     function loadFromLocalStorage() {
         income = JSON.parse(localStorage.getItem('income')) || [];
         expenses = JSON.parse(localStorage.getItem('expenses')) || [];
@@ -438,6 +432,7 @@
         };
     }
 
+    // ---------- DATE FILTER ----------
     function initDateFilter() {
         const now = DateTime.now();
         const from = now.startOf('month').toFormat('yyyy-MM-dd');
@@ -446,23 +441,19 @@
         document.getElementById('filter-to').value = to;
         filterFrom = from; filterTo = to;
     }
-
     function applyDateFilter() {
-        const from = document.getElementById('filter-from').value;
-        const to = document.getElementById('filter-to').value;
-        filterFrom = from || null;
-        filterTo = to || null;
-        if (!from && !to) initDateFilter();
+        const f = document.getElementById('filter-from').value;
+        const t = document.getElementById('filter-to').value;
+        filterFrom = f || null; filterTo = t || null;
+        if (!f && !t) initDateFilter();
         renderAll();
     }
-
     function resetDateFilter() {
         filterFrom = filterTo = null;
         document.getElementById('filter-from').value = '';
         document.getElementById('filter-to').value = '';
         renderAll();
     }
-
     function filterTransactions(arr) {
         if (!filterFrom && !filterTo) return arr;
         return arr.filter(t => {
@@ -473,19 +464,17 @@
         });
     }
 
+    // ---------- RENDER ----------
     function renderAll() { renderIncome(); renderExpenses(); updateDashboard(); }
 
     function renderIncome() {
         const list = document.getElementById('income-list'); list.innerHTML = ''; let total = 0;
-        const filtered = filterTransactions(income);
-        filtered.forEach((i, idx) => { total += i.amount; list.appendChild(createCard(i, 'income', idx)); });
+        filterTransactions(income).forEach((i, idx) => { total += i.amount; list.appendChild(createCard(i, 'income', idx)); });
         document.getElementById('income-total').textContent = formatLKR(total);
     }
-
     function renderExpenses() {
         const list = document.getElementById('expense-list'); list.innerHTML = ''; let total = 0;
-        const filtered = filterTransactions(expenses);
-        filtered.forEach((e, idx) => { total += e.amount; list.appendChild(createCard(e, 'expense', idx)); });
+        filterTransactions(expenses).forEach((e, idx) => { total += e.amount; list.appendChild(createCard(e, 'expense', idx)); });
         document.getElementById('expense-total').textContent = formatLKR(total);
     }
 
@@ -516,6 +505,7 @@
         return map[type]?.[cat] || '💸';
     }
 
+    // ---------- ADD / DELETE ----------
     function addIncome() { addTrans('income'); }
     function addExpense() { addTrans('expense'); }
     function addTrans(type) {
@@ -524,12 +514,14 @@
         const cat = document.getElementById(prefix + '-category').value;
         const desc = document.getElementById(prefix + '-desc').value.trim() || '—';
         const amt = parseFloat(document.getElementById(prefix + '-amount').value) || 0;
-        if (!date || !cat || amt <= 0) return alert('Fill all required');
-        (type === 'income' ? income : expenses).push({ date, category: cat, desc, amount: amt });
-        localStorage.setItem(type, JSON.stringify(type === 'income' ? income : expenses));
-        resetForm(type); renderAll(); backupToCloud();
+        if (!date || !cat || amt <= 0) return alert('Fill all required fields');
+        const arr = type === 'income' ? income : expenses;
+        arr.push({ date, category: cat, desc, amount: amt });
+        localStorage.setItem(type, JSON.stringify(arr));
+        resetForm(type);
+        renderAll();
+        backupToCloud();
     }
-
     function resetForm(type) {
         const p = type === 'income' ? 'inc' : 'exp';
         document.getElementById(p + '-date').valueAsDate = new Date();
@@ -542,9 +534,13 @@
     function deleteExpense(idx) { deleteItem('expense', idx); }
     function deleteItem(type, idx) {
         const arr = type === 'income' ? income : expenses;
-        arr.splice(idx, 1); localStorage.setItem(type, JSON.stringify(arr)); renderAll(); backupToCloud();
+        arr.splice(idx, 1);
+        localStorage.setItem(type, JSON.stringify(arr));
+        renderAll();
+        backupToCloud();
     }
 
+    // ---------- GOALS ----------
     function openGoalsModal() {
         const form = document.getElementById('goals-form'); form.innerHTML = '';
         Object.keys(budgetGoals).forEach(cat => {
@@ -558,17 +554,17 @@
         });
         document.getElementById('goals-modal').style.display = 'flex';
     }
-
     function closeGoalsModal() { document.getElementById('goals-modal').style.display = 'none'; }
     function saveGoals() {
         document.querySelectorAll('#goals-form input').forEach(i => {
-            const val = parseFloat(i.value) || 0;
-            if (val > 0) budgetGoals[i.dataset.cat] = val;
+            const v = parseFloat(i.value) || 0;
+            if (v > 0) budgetGoals[i.dataset.cat] = v;
         });
         localStorage.setItem('budgetGoals', JSON.stringify(budgetGoals));
         closeGoalsModal(); renderAll(); backupToCloud();
     }
 
+    // ---------- BUDGET MODAL ----------
     function openBudgetModal() {
         const sum = document.getElementById('budget-summary'); sum.innerHTML = '';
         let totalGoal = 0, totalSpent = 0;
@@ -596,17 +592,16 @@
                 </div>`;
         });
         const totalPct = totalGoal > 0 ? (totalSpent / totalGoal) * 100 : 0;
-        const rangeText = filterFrom ? `(${formatDate(filterFrom)} – ${formatDate(filterTo)})` : '';
+        const range = filterFrom ? `(${formatDate(filterFrom)} – ${formatDate(filterTo)})` : '';
         sum.innerHTML += `
             <div style="margin-top:1rem; padding:1rem; background:rgba(26,115,232,0.1); border-radius:12px; font-weight:600;">
                 <div style="display:flex; justify-content:space-between;">
-                    <span>Total Budget ${rangeText}</span>
+                    <span>Total Budget ${range}</span>
                     <span>${formatLKR(totalSpent)} / ${formatLKR(totalGoal)} (${totalPct.toFixed(0)}%)</span>
                 </div>
             </div>`;
         document.getElementById('budget-modal').style.display = 'flex';
     }
-
     function closeBudgetModal() { document.getElementById('budget-modal').style.display = 'none'; }
 
     function getMonthSpend(cat) {
@@ -614,6 +609,7 @@
         return expenses.filter(e => e.date.startsWith(month) && e.category === cat).reduce((s, e) => s + e.amount, 0);
     }
 
+    // ---------- DASHBOARD ----------
     function updateDashboard() {
         const inc = income.reduce((s, i) => s + i.amount, 0);
         const exp = expenses.reduce((s, e) => s + e.amount, 0);
@@ -629,7 +625,7 @@
         const all = [...income.map(i=>({...i,type:'income'})), ...expenses.map(e=>({...e,type:'expense'}))];
         all.sort((a,b)=>b.date.localeCompare(a.date));
         const recent = filterTransactions(all).slice(0,8);
-        const list = document.getElementById('recent-list'); 
+        const list = document.getElementById('recent-list');
         list.innerHTML = recent.length ? '' : '<p style="text-align:center; color:#999; padding:1rem;">No activity in range</p>';
         recent.forEach(t => {
             const emoji = getEmoji(t.category, t.type);
@@ -664,10 +660,8 @@
 
     function exportCSV() {
         let csv = 'Type,Date,Category,Description,Amount\n';
-        const filteredIncome = filterTransactions(income);
-        const filteredExpenses = filterTransactions(expenses);
-        filteredIncome.forEach(i=>csv+=`Income,${i.date},${i.category},${i.desc},${i.amount}\n`);
-        filteredExpenses.forEach(e=>csv+=`Expense,${e.date},${e.category},${e.desc},${e.amount}\n`);
+        filterTransactions(income).forEach(i=>csv+=`Income,${i.date},${i.category},${i.desc},${i.amount}\n`);
+        filterTransactions(expenses).forEach(e=>csv+=`Expense,${e.date},${e.category},${e.desc},${e.amount}\n`);
         const blob = new Blob([csv], {type:'text/csv'});
         const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
         const range = filterFrom ? `${filterFrom}_to_${filterTo}` : 'all-time';
@@ -677,7 +671,7 @@
     function formatLKR(a) { return new Intl.NumberFormat('en-LK', {style:'currency',currency:'LKR',minimumFractionDigits:2}).format(a); }
     function formatDate(d) { return DateTime.fromISO(d).toFormat('dd MMM yyyy'); }
 
-    // TAB SWITCHING
+    // ---------- TABS ----------
     document.querySelectorAll('.tab').forEach(tab => {
         tab.addEventListener('click', () => {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -687,12 +681,12 @@
         });
     });
 
-    // PWA Service Worker
+    // ---------- SERVICE WORKER ----------
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
             navigator.serviceWorker.register('sw.js')
-                .then(reg => console.log('SW registered', reg))
-                .catch(err => console.log('SW failed', err));
+                .then(r => console.log('SW registered', r))
+                .catch(e => console.log('SW failed', e));
         });
     }
 </script>
