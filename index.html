@@ -102,7 +102,7 @@
         <div id="password-fallback">
             <input type="password" id="password-input" placeholder="••••••••">
             <button class="btn" onclick="loginWithPassword()">Unlock with Password</button>
-            
+            <p style="font-size:0.8rem; color:#999; margin-top:0.5rem;">Password: <strong>TCpg@2014</strong></p>
         </div>
 
         <div id="cloud-status" class="cloud-status"></div>
@@ -280,7 +280,7 @@
     let db = null, user = null;
 
     // === PASTE YOUR FIREBASE CONFIG HERE ===
-    const firebaseConfig = {
+     const firebaseConfig = {
   apiKey: "AIzaSyCpc3QxeeP1OUu4XXv8GtbXq53-a69fxdQ",
   authDomain: "lkr-finance-pro.firebaseapp.com",
   projectId: "lkr-finance-pro",
@@ -288,7 +288,6 @@
   messagingSenderId: "77274353339",
   appId: "1:77274353339:web:c7b3b2711a5da69e87e39e"
 };
-
     // ========================================
 
     // Initialize Firebase
@@ -338,13 +337,13 @@
         document.getElementById('password-fallback').style.display = 'block';
     }
 
-    // CLOUD BACKUP
+    // CLOUD BACKUP – ALWAYS RESTORE ON LOGIN
     async function initCloud() {
         try {
             user = await new Promise((resolve) => auth.signInAnonymously().then(u => resolve(u.user)));
             db = firestore.collection('users').doc(user.uid);
             document.getElementById('cloud-status').innerHTML = 'Connected';
-            await restoreFromCloud();
+            await restoreFromCloud();   // ← RESTORES EVERY LOGIN
         } catch (e) {
             document.getElementById('cloud-status').innerHTML = 'Offline';
             renderAll();
@@ -361,7 +360,7 @@
         try {
             await db.set(data);
             document.getElementById('backup-status').textContent = 'Backed up';
-            setTimeout(() => document.getElementById('backup-status').textContent = '', 2000);
+            setTimeout(() => document.getElementById('backup-status').textContent one = '', 2000);
         } catch (e) {
             document.getElementById('backup-status').textContent = 'Failed';
         }
@@ -400,7 +399,7 @@
         document.getElementById('login-modal').style.display = 'none';
         document.getElementById('app-content').style.display = 'block';
         initApp();
-        initCloud();
+        initCloud();   // ← triggers restore every login
     }
 
     // Show biometric if available
@@ -417,7 +416,6 @@
         document.getElementById('exp-date').valueAsDate = new Date();
         loadFromLocalStorage();
         initDateFilter();
-        // renderAll() is called from restoreFromCloud()
     }
 
     function loadFromLocalStorage() {
@@ -517,7 +515,7 @@
         const amt = parseFloat(document.getElementById(prefix + '-amount').value) || 0;
         if (!date || !cat || amt <= 0) return alert('Fill all required');
         (type === 'income' ? income : expenses).push({ date, category: cat, desc, amount: amt });
-        localStorage.setItem(type, JSON.stringify(type === 'income' ? income : expenses));   // ← FIXED LINE
+        localStorage.setItem(type, JSON.stringify(type === 'income' ? income : expenses));
         resetForm(type); renderAll(); backupToCloud();
     }
 
